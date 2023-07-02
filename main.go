@@ -58,13 +58,37 @@ func getNativeMemoryData(pid string) string {
 	return string(stdout)
 }
 
+func parseNMTData(rawData string) map[string]string {
+	lookupStrings := [11]string{"Total", "Java Heap", "Class", "Thread", "Code", "GC", "Compiler", "Internal", "Symbol", "Native Memory Tracking ", "Arena Chunk"}
+
+	parsedData := make(map[string]string)
+	for _, k := range lookupStrings {
+
+		// RegExp to identify all punctuation (p{P}) and mathematical symbols (p{S})
+		reg, _ := regexp.Compile(`[\p{P}\p{S}]+`)
+
+		leftIdx := strings.Index(rawData, k)
+		rightIdx := strings.Index(string(rawData[leftIdx:]), "\n")
+
+		value := string(rawData[leftIdx : leftIdx+rightIdx])
+
+		splitString := strings.Fields(reg.ReplaceAllString(value, " "))
+		value = splitString[len(splitString)-1]
+		key := (strings.ReplaceAll(strings.ToUpper(strings.Trim(k, " ")), " ", "_"))
+
+		// fmt.Println(key, value)
+		parsedData[key] = value
+	}
+	return parsedData
+}
+
 func main() {
 	javaPid := identifyJavaPid()
-	fmt.Printf("Java PID identified: %s", javaPid)
+	fmt.Printf("Java PID identified: %s\n", javaPid)
 	match := checkNMTEnabled(javaPid)
-	fmt.Println(match)
 	if match {
 		nmtRawData := getNativeMemoryData(javaPid)
-		fmt.Println(nmtRawData)
+		parsedData := parseNMTData(nmtRawData)
+		fmt.Println(parsedData)
 	}
 }
