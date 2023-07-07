@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"time"
 )
 
 func identifyJavaPid() string {
@@ -17,7 +18,7 @@ func identifyJavaPid() string {
 	stdout, err := cmd.Output()
 
 	if err != nil {
-		log.Fatal("No Java PID found!")
+		fmt.Println("No Java PID found!")
 	}
 	return strings.ReplaceAll(string(stdout), "\n", "")
 }
@@ -36,7 +37,8 @@ func checkNMTEnabled(pid string) bool {
 	stdout, err := cmd.Output()
 
 	if err != nil {
-		log.Fatal("NativeMemoryTracking not enabled for PID: " + pid)
+		fmt.Println("NativeMemoryTracking not enabled for PID: " + pid)
+		return false
 	}
 
 	match, _ := regexp.MatchString("NativeMemoryTracking", string(stdout))
@@ -83,12 +85,18 @@ func parseNMTData(rawData string) map[string]string {
 }
 
 func main() {
-	javaPid := identifyJavaPid()
-	fmt.Printf("Java PID identified: %s\n", javaPid)
-	match := checkNMTEnabled(javaPid)
-	if match {
-		nmtRawData := getNativeMemoryData(javaPid)
-		parsedData := parseNMTData(nmtRawData)
-		fmt.Println(parsedData)
+	for {
+
+		javaPid := identifyJavaPid()
+		if javaPid != "" {
+			fmt.Printf("Java PID identified: %s\n", javaPid)
+		}
+		match := checkNMTEnabled(javaPid)
+		if match {
+			nmtRawData := getNativeMemoryData(javaPid)
+			parsedData := parseNMTData(nmtRawData)
+			fmt.Println(parsedData)
+		}
+		time.Sleep(60 * time.Second)
 	}
 }
