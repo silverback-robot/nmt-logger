@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -84,6 +86,30 @@ func parseNMTData(rawData string) map[string]string {
 	return parsedData
 }
 
+func writeToFile(parsedData map[string]string) {
+	// Check if log file exists; create file with header if not exists
+	if _, err := os.Stat("logs/memory_stats.log"); errors.Is(err, os.ErrNotExist) {
+		err := os.Mkdir("logs/", 0750)
+		if err != nil && !os.IsExist(err) {
+			log.Fatal(err)
+		}
+		err = os.WriteFile("logs/memory_stats.log", []byte("ARENA_CHUNK|CLASS|CODE|COMPILER|GC|INTERNAL|JAVA_HEAP|NATIVE_MEMORY_TRACKING|SYMBOL|THREAD|TOTAL\n"), 0660)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	// Append parsed nmt values to log file
+	f, err := os.OpenFile("logs/memory_stats.log", os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+	_, err = f.WriteString(parsedData["ARENA_CHUNK"] + "|" + parsedData["CLASS"] + "|" + parsedData["CODE"] + "|" + parsedData["COMPILER"] + "|" + parsedData["GC"] + "|" + parsedData["INTERNAL"] + "|" + parsedData["JAVA_HEAP"] + "|" + parsedData["NATIVE_MEMORY_TRACKING"] + "|" + parsedData["SYMBOL"] + "|" + parsedData["THREAD"] + "|" + parsedData["TOTAL"] + "\n")
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func main() {
 	for {
 
@@ -96,6 +122,7 @@ func main() {
 			nmtRawData := getNativeMemoryData(javaPid)
 			parsedData := parseNMTData(nmtRawData)
 			fmt.Println(parsedData)
+			writeToFile(parsedData)
 		}
 		time.Sleep(60 * time.Second)
 	}
